@@ -64,6 +64,19 @@ from src.visualization.charts import (
     plot_drawdown,
     plot_var_histogram,
 )
+from app.user_experience import (
+    EXPERIENCE_MODES,
+    apply_display_labels,
+    get_mode,
+    render_explanations_panel,
+    render_mode_toggle,
+)
+from app.risk_warnings import evaluate_all as evaluate_risk_warnings
+from app.risk_warnings import render_risk_warnings
+from app.personalisation import (
+    render_personalisation_panel,
+    weights_to_dollars,
+)
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -214,10 +227,15 @@ def _find_latest_csv() -> Path | None:
 # ---------------------------------------------------------------------------
 
 
-def render_sidebar(prices_full: pd.DataFrame) -> dict:
+def render_sidebar(prices_full: pd.DataFrame, mode: str) -> dict:
     """
     Render all sidebar controls and return the validated dashboard inputs
     as a dict. See spec §2.1.
+
+    Phase 8 (Task 8.3): `mode` groups the technical controls under an
+    "Advanced options" expander in Beginner mode. Controls are NEVER removed
+    — they are visible-but-collapsed, so existing widget keys, regression
+    tests, and power users are unaffected.
     """
     st.sidebar.title("Portfolio Configurator")
 
@@ -241,7 +259,6 @@ def render_sidebar(prices_full: pd.DataFrame) -> dict:
         min_value=full_start,
         max_value=full_end,
     )
-    # date_input returns a tuple (or a single date if the user is mid-pick)
     if isinstance(date_range, (tuple, list)) and len(date_range) == 2:
         date_start_raw, date_end_raw = date_range
     else:
@@ -267,39 +284,48 @@ def render_sidebar(prices_full: pd.DataFrame) -> dict:
         index=list(_CONFIDENCE_OPTIONS.keys()).index(_DEFAULT_CONFIDENCE),
     )
     confidence_level = _CONFIDENCE_OPTIONS[confidence_label]
-
-    # Frontier resolution
-    n_points = st.sidebar.slider(
-        "Frontier resolution (points per branch)",
-        min_value=20,
-        max_value=100,
-        value=50,
-        step=10,
+    # Phase 8 (Task 8.6): optional personalisation panel. Placed BEFORE the
+    # technical-controls expander so it is always visible in both modes
+    # (it is explicitly optional and never blocks the optimization).
+    personalisation = render_personalisation_panel(
+        sidebar_target_return=None,  # not yet known at this point in render order
+        sidebar_include_target=False,
     )
+    # ---- Technical controls (Phase 8: expander in Beginner, plain in Advanced)
+    if mode == "Beginner":
+        tech_container = st.sidebar.expander("Advanced options", expanded=False)
+    else:
+        tech_container = st.sidebar  # plain — no expander wrapper in Advanced
 
-    # Optional target return
-    include_target = st.sidebar.checkbox("Include Target Return portfolio", value=False)
-    target_return: float | None = None
-    mu_min = mu_max = 0.0
-    if include_target:
-        # Dynamic bounds from currently selected assets' mu
-        if len(selected_tickers) >= 2:
-            subset = prices_full[selected_tickers].loc[date_start:date_end]
-            if not subset.empty:
-                returns_sub = subset.pct_change().dropna()
-                if not returns_sub.empty:
-                    mu_sub = compute_expected_returns(returns_sub, annualize=True)
-                    mu_min, mu_max = _target_slider_bounds(mu_sub)
-        if mu_min < mu_max:
-            target_return = st.sidebar.slider(
-                "Target return (%)",
-                min_value=float(mu_min * 100.0),
-                max_value=float(mu_max * 100.0),
-                value=float(((mu_min + mu_max) / 2.0) * 100.0),
-                step=0.1,
-            ) / 100.0
-        else:
-            st.sidebar.warning("Cannot compute target bounds — select at least 2 tickers.")
+    with tech_container:
+        n_points = st.slider(
+            "Frontier resolution (points per branch)",
+            min_value=20,
+            max_value=100,
+            value=50,
+            step=10,
+        )
+        include_target = st.checkbox("Include Target Return portfolio", value=False)
+        target_return: float | None = None
+        mu_min = mu_max = 0.0
+        if include_target:
+            if len(selected_tickers) >= 2:
+                subset = prices_full[selected_tickers].loc[date_start:date_end]
+                if not subset.empty:
+                    returns_sub = subset.pct_change().dropna()
+                    if not returns_sub.empty:
+                        mu_sub = compute_expected_returns(returns_sub, annualize=True)
+                        mu_min, mu_max = _target_slider_bounds(mu_sub)
+            if mu_min < mu_max:
+                target_return = st.slider(
+                    "Target return (%)",
+                    min_value=float(mu_min * 100.0),
+                    max_value=float(mu_max * 100.0),
+                    value=float(((mu_min + mu_max) / 2.0) * 100.0),
+                    step=0.1,
+                ) / 100.0
+            else:
+                st.warning("Cannot compute target bounds — select at least 2 tickers.")
 
     return {
         "selected_tickers": selected_tickers,
@@ -313,6 +339,7 @@ def render_sidebar(prices_full: pd.DataFrame) -> dict:
         "target_return": target_return,
         "mu_min": mu_min,
         "mu_max": mu_max,
+        "personalisation": personalisation,   # ← ADDED: Task 8.6 callout passthrough
     }
 
 
@@ -515,7 +542,22 @@ def render_risk_tab(inputs: dict, data: dict) -> None:
     c1.metric(f"VaR ({int(inputs['confidence_level']*100)}%)", _fmt_pct(var_value))
     c2.metric(f"CVaR ({int(inputs['confidence_level']*100)}%)", _fmt_pct(cvar_value))
     c3.metric("Max drawdown", _fmt_pct_signed(mdd_value))
-
+    # 3b. Phase 8 Task 8.7: metric-based risk warnings.
+    # Inputs are the *already computed* metrics above — no new calculation.
+    _mode = get_mode()
+    try:
+        _weights = w
+        _warnings = evaluate_risk_warnings(
+            volatility=float(row["volatility"]),
+            var=float(var_value),
+            cvar=float(cvar_value),
+            max_drawdown=float(mdd_value),
+            weights=_weights,
+            confidence=float(inputs["confidence_level"]),
+        )
+        render_risk_warnings(warnings=_warnings, mode=_mode)
+    except Exception as e:
+        st.error(f"Failed to compute risk warnings: {type(e).__name__}: {e}")
     # 4. Drawdown chart
     st.subheader(f"Drawdown — {selected}")
     try:
@@ -609,7 +651,10 @@ def main() -> None:
         "Phase 5 (risk) pipelines. All numbers are computed by the "
         "`src.*` modules — nothing is re-derived inside Streamlit."
     )
-
+    # Phase 8 (Task 8.3): dashboard-level mode toggle. Rendered BEFORE the
+    # CSV check so a broken CSV never hides the control; the mode is pure
+    # presentation state and does not depend on data loading.
+    mode = render_mode_toggle()
     # 1. Discover the latest CSV
     csv_path = _find_latest_csv()
     if csv_path is None:
@@ -633,7 +678,7 @@ def main() -> None:
     )
 
     # 3. Sidebar controls
-    inputs = render_sidebar(prices_full)
+    inputs = render_sidebar(prices_full, mode=mode)
 
     # 4. Pre-run validation (spec §2.2, §5.1)
     errors, warnings = _validate_inputs(
@@ -669,7 +714,11 @@ def main() -> None:
         st.error(f"Failed to filter data: {type(e).__name__}: {e}")
         return
 
-    # 6. Three tabs — each tab's render is isolated (spec §5.2)
+    # 6. Three tabs — each wrapped in Numerical Results / Explanations
+    #    sub-tabs (Phase 8, Task 8.4). The existing renderers are untouched
+    #    in the Numerical-Results sub-tab; the Explanations sub-tab is a
+    #    Task 8.4 stub until Task 8.5 fills in the wording.
+    mode = get_mode()
     tab_opt, tab_risk, tab_frontier = st.tabs(
         ["Optimization", "Risk Analysis", "Frontier"]
     )
@@ -680,11 +729,19 @@ def main() -> None:
     ]
     for tab_obj, render_fn, name in tabs:
         with tab_obj:
-            try:
-                render_fn(inputs, data)
-            except Exception as e:
-                st.error(f"[{name}] {type(e).__name__}: {e}")
-                # Note: no st.stop() — other tabs must still render (spec §5.2)
+            sub_num, sub_exp = st.tabs(["Numerical Results", "Explanations"])
+            with sub_num:
+                try:
+                    render_fn(inputs, data)
+                except Exception as e:
+                    st.error(f"[{name}] {type(e).__name__}: {e}")
+                    # Note: no st.stop() — other tabs must still render.
+            with sub_exp:
+                render_explanations_panel(
+                    mode,
+                    tab_name=name,
+                    personalisation=inputs.get("personalisation"),
+                )
 
 
 if __name__ == "__main__":

@@ -389,6 +389,26 @@ Open the forwarded URL in the Codespace Ports tab.
 
 All 7 phases are complete. The project is ready for submission and demonstration.
 
+### Phase 8 additions (Beginner/Advanced experience)
+
+- **Beginner/Advanced mode** toggle — presentation-only; never changes
+  calculations.
+- **Numerical Results / Explanations** sub-tabs inside every tab.
+- **Per-metric explanations** in plain English or formula-level.
+- **Optional personalisation** panel (investment amount, horizon, risk
+  tolerance, objective). Target return is shown read-only; sidebar remains
+  the single source of truth.
+- **Metric-based risk warnings** derived only from already-calculated
+  metrics.
+
+Full detail: `docs/phase8_dashboard_experience.md`.
+
+**Optional personalisation.** The sidebar has a collapsed "Personalise
+(optional)" panel: investment amount (converts weights to dollars), horizon,
+risk tolerance, and objective. All fields are optional; nothing is required
+to run the optimizer. The target return shown in that panel is a read-only
+reflection of the sidebar's target-return control.
+
 ## Team Members and Course Context
 
 - **Repository:** `aryansjainbtech25-sys/05-Financial-Portfolio-Optimization-and-Risk-Allocator`

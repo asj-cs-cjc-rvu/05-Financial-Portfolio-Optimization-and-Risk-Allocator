@@ -24,3 +24,16 @@
 - **Shallowest max drawdown:** `MinVolatility` (MDD = -27.48%).
 
 **Reading the table:** VaR and CVaR are reported as positive loss magnitudes (industry convention). MDD is a signed peak-to-trough cumulative return (≤ 0), consistent with `drawdown_series`. A portfolio with the lowest volatility does not necessarily have the lowest VaR — VaR depends on the tail shape, not just the second moment. If MinVolatility does not have the smallest VaR on this data, that is a legitimate empirical result, not a bug.
+
+---
+
+## Phase 8 — Risk-warning interpretation
+
+The dashboard adds metric-based risk warnings (Phase 8, Task 8.7) derived
+only from already-calculated metrics. Thresholds and rationale are documented
+in `docs/phase8_dashboard_experience.md`, Task 8.7.
+
+Warnings are **not predictions** and **not investment advice**. They describe
+what the already-computed risk metrics imply about the portfolio on the
+lookback window. A warning firing does not mean the portfolio is unsuitable —
+only that a metric crossed a documented threshold chosen for transparency.

@@ -5,6 +5,31 @@
 **Commit:** *(populated after final commit)*
 **Branch:** `feature/phase-4`
 
+## Phase 8 — complete (additional-features branch)
+
+- Beginner/Advanced experience modes (presentation-only; invariant-tested
+  that switching mode does not change numerical results).
+- Numerical Results / Explanations sub-tabs inside every dashboard tab.
+- Per-metric explanations in both modes (`app/explanations.py`, 20 topics).
+- Optional personalisation panel (`app/personalisation.py`): investment
+  amount, horizon, risk tolerance, objective; read-only target-return
+  reflection (sidebar remains the single source of truth).
+- Metric-based risk warnings (`app/risk_warnings.py`) derived only from
+  already-calculated metrics.
+- **377 passed / 0 failed / 0 skipped** (baseline 252, +125 new tests).
+  `src/` untouched. No pre-existing test modified.
+- Two latent defects found and fixed during closeout with permanent
+  regression tests:
+  - `weights_to_dollars` sentinel contract (was returning NaN-filled Series).
+  - `render_sidebar` did not pass `personalisation` through, silently
+    disabling the Beginner-mode callout.
+- Screenshots captured: eight `docs/screenshots/phase8_*.png`.
+- `docs/data_summary.md` regenerated as a side effect of the screenshot
+  data-fetch step (data-refresh only; retained so screenshots and summary
+  match).
+
+## Phase 8 — started (additional-features branch)
+
 ## Highlights
 
 This is the final, submission-ready release of the **Financial Portfolio Optimization & Risk Allocator** project for **LA2133: Theory and Practice of Linear Algebra**.

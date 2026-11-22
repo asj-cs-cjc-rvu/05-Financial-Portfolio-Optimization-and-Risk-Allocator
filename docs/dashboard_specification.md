@@ -393,3 +393,71 @@ Approving supervisor: Senior Software Engineer, Linear Algebra Project Mentor.
 - Task 6.6: efficient frontier, drawdown, VaR histogram integrated
 - Task 6.7: three-layer error handling; no `st.stop()`; graceful failure modes
 - Task 6.8: `tests/test_dashboard.py`; real-data verification
+
+---
+
+## Phase 8 — Experience Modes (Beginner / Advanced)
+
+Phase 8 adds a dashboard-level **Beginner / Advanced** toggle. Mode affects
+presentation only — terminology, visible columns, explanation depth, warning
+verbosity, and the placement of technical controls — and **must never change
+portfolio calculations or numerical results**.
+
+Full requirements, terminology tables, and the mode-safety invariant are in
+[`docs/phase8_dashboard_experience.md`](phase8_dashboard_experience.md).
+
+### Summary table
+
+| Area | Beginner | Advanced |
+|---|---|---|
+| Default mode | ✅ (first load) | — |
+| Terminology | Plain English | Technical |
+| `variance`, `n_iter` columns | Hidden | Shown |
+| Frontier metadata table | Collapsed expander | Visible |
+| Frontier resolution, target-return controls | Under "Advanced options" expander | Visible |
+| Explanations tab | Plain-English + examples | Technical + formulas |
+| Risk warnings | One-line, no numbers | Trigger + metric value |
+
+### Sidebar invariants
+All pre-Phase-8 sidebar controls remain present in both modes. In Beginner
+mode some are grouped under an "Advanced options" expander; they are never
+removed.
+
+### Target return
+The optimizer's target return is a first-class optimization control set in
+the sidebar. The Phase 8 personalisation panel displays it **read-only** for
+context. There is no second target-return input (single source of truth).
+
+### Session state
+Mode persists in `st.session_state["experience_mode"]` (session-scoped).
+The mode value is **not** passed into any `src.*` function.
+
+### Tab layout (Phase 8)
+
+Each of the three outer tabs (Optimization, Risk Analysis, Frontier) contains
+two inner sub-tabs:
+
+- **Numerical Results** — the existing tables, charts, and metric cards.
+- **Explanations** — mode-aware educational content.
+
+Inner sub-tabs were chosen over new outer-level tabs to preserve the
+three-tab navigation model. See `docs/phase8_dashboard_experience.md`
+Tasks 8.3 and 8.4.
+
+### Optional personalisation (Phase 8, Task 8.6)
+
+The sidebar contains a collapsed "Personalise (optional)" expander with:
+investment amount, horizon, risk tolerance, objective, and a read-only
+display of the sidebar target return. All fields are optional. Personalisation
+never alters the optimizer; it only changes the dollar-allocation display and
+adds a Beginner-mode "What this means for you" callout in the Explanations
+sub-tab. See `docs/phase8_dashboard_experience.md`, Task 8.6.
+
+### Phase 8 completion cross-reference
+
+All Phase 8 work is complete per `docs/phase8_dashboard_experience.md`.
+The dashboard now includes Beginner/Advanced modes, Numerical/Explanations
+sub-tabs, per-metric explanations, optional personalisation, and
+metric-based risk warnings. All pre-existing controls and calculations are
+preserved. Test totals and known limitations are in the Phase 8 document,
+Task 8.10.
